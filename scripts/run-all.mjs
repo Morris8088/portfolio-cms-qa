@@ -36,11 +36,27 @@ const results = [];
 for (const step of steps) {
   console.log(`\n===== ${step.name} =====`);
   const started = Date.now();
+
+  // 输出一边转发到控制台、一边留一份文本。
+  // 接口层跑的是 node:test 的 TAP，末尾有 "# pass 30 / # fail 0" 这类统计，
+  // 把它解析出来写进 summary，报告就能显示"本次真实通过数"，
+  // 而不是只显示用例清单里写了多少条。
+  let output = '';
   const exitCode = await new Promise((done) => {
     const child = spawn(process.execPath, [resolve(ROOT, step.script), ...step.args], {
       cwd: ROOT,
-      stdio: 'inherit',
+      stdio: ['inherit', 'pipe', 'pipe'],
       env: process.env
+    });
+    child.stdout.on('data', (d) => {
+      const s = d.toString();
+      output += s;
+      process.stdout.write(s);
+    });
+    child.stderr.on('data', (d) => {
+      const s = d.toString();
+      output += s;
+      process.stderr.write(s);
     });
     child.on('error', (err) => {
       console.error(`[run-all] 启动失败：${err.message}`);
@@ -48,14 +64,30 @@ for (const step of steps) {
     });
     child.on('exit', (code) => done(code ?? 1));
   });
+
+  const pick = (re) => {
+    const m = output.match(re);
+    return m ? Number(m[1]) : 0;
+  };
+  const counts = step.key === 'api'
+    ? {
+        pass: pick(/# pass (\d+)/),
+        fail: pick(/# fail (\d+)/),
+        skipped: pick(/# skipped (\d+)/),
+        todo: pick(/# todo (\d+)/)
+      }
+    : null;
+
   results.push({
     key: step.key,
     name: step.name,
     ok: exitCode === 0,
     exitCode,
-    durationMs: Date.now() - started
+    durationMs: Date.now() - started,
+    ...(counts ? { counts } : {})
   });
   console.log(`===== ${step.name}：${exitCode === 0 ? '通过' : '失败'} =====`);
+  if (counts) console.log(`      接口层统计：通过 ${counts.pass} · 失败 ${counts.fail} · TODO ${counts.todo}`);
 }
 
 const summary = {

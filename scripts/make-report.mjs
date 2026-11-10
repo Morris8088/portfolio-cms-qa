@@ -32,6 +32,18 @@ const cases = casesDoc.cases || [];
 const automated = cases.filter((c) => c.status === 'automated');
 const practice = cases.filter((c) => c.status === 'practice');
 const p0 = cases.filter((c) => c.priority === 'P0');
+const knownIssues = casesDoc.knownIssues || [];
+
+// 「本次真实通过数」来自运行产物，不是用例清单里手写的状态：
+//   接口层 → run-all.mjs 解析 TAP 的 # pass
+//   页面层 → Playwright JSON reporter 的 stats.expected
+const apiCounts = (summary?.results || []).find((r) => r.key === 'api')?.counts || null;
+const e2ePassed = pw?.stats?.expected ?? 0;
+const e2eFailed = pw?.stats?.unexpected ?? 0;
+const e2eSkipped = pw?.stats?.skipped ?? 0;
+const totalPassed = (apiCounts?.pass ?? 0) + e2ePassed;
+const totalFailed = (apiCounts?.fail ?? 0) + e2eFailed;
+const automationRate = cases.length ? Math.round((automated.length / cases.length) * 100) : 0;
 
 // 自己写的小工具：把内容里的 < > & 转义，避免用例标题里的符号把 HTML 弄坏
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({
@@ -56,6 +68,15 @@ const pwStats = pw?.stats
 const pwLink = existsSync(resolve(REPORTS, 'playwright/index.html'))
   ? '<a class="link" href="playwright/index.html">打开 Playwright 逐条报告（含失败截图 / trace）→</a>'
   : '';
+
+// 已知风险：折叠展示，既不掩盖，也不占掉报告首屏
+const issueCards = knownIssues.map((i) => `<details class="risk">
+    <summary><span class="tag amber">${esc(i.id)}</span> ${esc(i.title)} <span class="dim">· ${esc(i.severity)}风险 · ${esc(i.status)}</span></summary>
+    <p><b>发现于</b> ${esc(i.foundBy)}｜<b>证据</b> ${esc(i.evidence)}</p>
+    <p><b>影响</b> ${esc(i.risk)}</p>
+    <p><b>建议</b> ${esc(i.suggestion)}</p>
+    <p><b>为什么没写成失败断言</b> ${esc(i.whyNotAsserted)}</p>
+  </details>`).join('');
 
 const rows = cases.map((c) => {
   const badge = c.status === 'automated'
@@ -115,6 +136,9 @@ const html = `<!doctype html>
   .purple{ background:#f1e9fd; color:#6b3bb5; }
   .prio { font-family:ui-monospace,Consolas,monospace; font-size:12px; font-weight:700; }
   .p0 { color:#d93025; } .p1 { color:#c07a00; } .p2 { color:#5b6b7f; }
+  .risk { background:#fff8ec; border:1px solid #f5d9a8; border-radius:12px; padding:14px 18px; margin:10px 0; }
+  .risk summary { cursor:pointer; font-weight:600; color:#8a4b00; }
+  .risk p { margin:8px 0 0; color:#5b6b7f; font-size:13px; }
   footer { margin-top:28px; color:#8492a6; font-size:12px; line-height:1.9; }
 </style>
 </head>
@@ -129,15 +153,18 @@ const html = `<!doctype html>
 
   <div class="grid">
     <div class="stat"><b>${cases.length}</b><span>用例总数（用例清单）</span></div>
-    <div class="stat"><b>${automated.length}</b><span>已自动化</span></div>
-    <div class="stat"><b>${practice.length}</b><span>练习位（待补）</span></div>
-    <div class="stat"><b>${p0.length}</b><span>P0 高优先级</span></div>
+    <div class="stat"><b style="color:#0f9d58">${totalPassed}</b><span>本次执行通过</span></div>
+    <div class="stat"><b style="color:${totalFailed ? '#d93025' : '#0f9d58'}">${totalFailed}</b><span>本次执行失败</span></div>
+    <div class="stat"><b>${automationRate}%</b><span>自动化覆盖率（${automated.length}/${cases.length}）</span></div>
   </div>
 
+  <div class="note">P0 高优先级 ${p0.length} 条 · 练习位 ${practice.length} 条 · 跳过 ${e2eSkipped + (apiCounts?.skipped ?? 0)} 条 · 接口层 TODO ${apiCounts?.todo ?? 0} 条</div>
   <div class="note">接口被测地址：${esc(summary?.apiBaseUrl || 'http://127.0.0.1:3301')}</div>
   <div class="note">页面被测地址：${esc(summary?.e2eBaseUrl || 'http://127.0.0.1:4173/portfolio-cms/')}</div>
   ${pwStats}
   ${pwLink}
+
+  ${knownIssues.length ? `<h2>本次运行发现的遗留风险（${knownIssues.length}）</h2>${issueCards}` : ''}
 
   <h2>用例清单</h2>
   <table>
@@ -147,7 +174,8 @@ const html = `<!doctype html>
 
   <footer>
     报告由 <code>scripts/make-report.mjs</code> 汇总生成，用例清单的唯一数据源是 <code>cases/testcases.json</code>；<br>
-    文档与报告共用同一份数据，避免手写表格三处不一致。失败时 Playwright 会在 <code>reports/playwright/</code> 留下截图与 trace。<br>
+    「本次执行通过数」来自运行产物（TAP 的 <code># pass</code> 与 Playwright JSON 的 <code>stats.expected</code>），不是手填的。<br>
+    失败时 Playwright 会在 <code>reports/playwright/</code> 留下截图与 trace。<br>
     运行方式：<code>npm test</code>（两层全跑）· <code>npm run test:api</code>（仅接口）· <code>npm run test:e2e</code>（仅页面）。
   </footer>
 </div>

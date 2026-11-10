@@ -3,6 +3,22 @@
 > [portfolio-cms](https://github.com/Morris8088/portfolio-cms) 的**配套自动化测试工程**。
 > 一句话：它不写业务代码，只负责"把被测系统拉起来、按设计好的用例测一遍、出一份能给人看的报告"。
 
+## 当前成绩
+
+| 层次 | 用例数 | 本次结果 | 耗时 |
+| --- | --- | --- | --- |
+| 接口契约（Node 内置 `node:test`） | 30 | 30 通过 / 0 失败 | ~2 秒 |
+| 页面 E2E（Playwright + 系统 Chrome） | 9 | 9 通过 / 0 失败 | ~20 秒 |
+| **合计** | **39** | **39 通过 / 0 失败 / 0 TODO / 0 跳过** | **~25 秒** |
+
+`cases/testcases.json` 里 39 条用例**全部是 `automated`**，没有练习位、没有跳过、没有伪装成通过的空壳。
+报告首屏的「本次执行通过 39」不是手填的：接口层来自 TAP 的 `# pass 30`，页面层来自 Playwright JSON reporter 的 `stats.expected`。
+
+> ⚠️ **全部通过 ≠ 没有缺陷**。跑这套用例时新发现 1 个被测项目尚未修复的风险：
+> `BUG-005` 上传接口只校验扩展名、不校验文件内容（把脚本改名成 `.png` 能传上去）。
+> 我**故意没把它写成失败断言**，而是记录进 `cases/testcases.json` 的 `knownIssues` 和 `docs/03-缺陷清单.md`，
+> 报告里有一块可展开的「遗留风险」。理由见 `docs/02` 第五节 —— 把缺陷固化成"期望值"是测试设计的反模式。
+
 ## 为什么要单独建一个仓库
 
 原来那个项目里其实已经有 60+ 个测试，但都散在 `backend/test/`、`frontend/test/` 和脚本里。
@@ -12,8 +28,8 @@
 
 | 求职方向 | 这个仓库能拿出来讲的东西 |
 | --- | --- |
-| 测试 | 用例设计方法、分层策略、缺陷清单、数据隔离、CI、可视化报告 |
-| 前端 | Playwright 页面自动化、选择器与设计、hash 路由与 SPA 兜底、回归用例 |
+| 测试 | 39 条用例的设计方法、分层策略、5 个缺陷、数据隔离、CI、可视化报告 |
+| 前端 | Playwright 页面自动化、选择器设计、hash 路由与 SPA 兜底、回归用例 |
 | 后端 | 接口契约、鉴权与越权、参数边界、上传安全、`node:test` 零依赖方案 |
 
 同一份代码，三个岗位各讲各的重点，不用准备三套作品。
@@ -58,28 +74,31 @@ E2E_BASE_URL=https://morris8088.github.io/portfolio-cms/ npm run test:e2e
 
 ```
 portfolio-cms-qa/
-├── cases/testcases.json      用例清单——唯一数据源（文档、报告都读它）
-├── docs/                     策略 / 用例设计 / 缺陷清单 / 面试讲法 / 练习任务
+├── cases/testcases.json      用例清单——唯一数据源（含 knownIssues 遗留风险）
+├── docs/                     策略 / 用例设计 / 缺陷清单 / 面试讲法 / 精读与扩展
 ├── fixtures/factory.js       测试数据工厂（每次造新数据，避免用例互相污染）
 ├── scripts/
 │   ├── sut-server.mjs        用内存库启动真实后端，跑完即焚
 │   ├── static-server.mjs     本地复刻 GitHub Pages（含 SPA 兜底）
-│   ├── with-sut.mjs          起服务 → 跑测试 → 一定关服务
-│   ├── run-all.mjs           两层都跑完再统一出报告
+│   ├── with-sut.mjs          起服务 → 跑测试 → 一定关服务（含测试发现）
+│   ├── run-all.mjs           两层都跑完，解析 TAP/JSON 统计，再统一出报告
 │   └── make-report.mjs       汇总成 reports/index.html
 ├── tests/
-│   ├── api/                  接口契约层（Node 内置 test runner，零依赖）
-│   │   ├── helpers/client.js    fetch 封装：状态码/响应体/耗时一起返回
-│   │   ├── smoke.test.js        ★ 范例①：写透的 7 条用例
-│   │   └── *.test.js           练习位（test.todo，不算失败）
-│   └── e2e/                  页面层（Playwright Test）
-│       ├── reader.spec.js      ★ 范例②：写透的 5 条读者主流程
-│       └── admin.spec.js       练习位（test.skip）
+│   ├── api/                  接口契约层（30 条，Node 内置 test runner，零依赖）
+│   │   ├── helpers/client.js    fetch 封装：状态码/响应体/耗时；上传与二进制读取
+│   │   ├── smoke.test.js        范例①：7 条冒烟与契约（逐行注释写透）
+│   │   ├── auth.test.js         登录 / 账号枚举 / 伪造令牌（5 条）
+│   │   ├── posts.crud.test.js   新建、校验、409、部分更新、草稿可见性、删除（6 条）
+│   │   ├── posts.query.test.js  搜索、标签、排序、注入、分页（6 条）
+│   │   └── uploads.test.js      上传安全专场（6 条，含 BUG-005 探针）
+│   └── e2e/                  页面层（9 条，Playwright Test）
+│       ├── reader.spec.js     范例②：5 条读者主流程（4 个真实线上事故的回归）
+│       └── admin.spec.js      4 条后台流程，含"发布→退出→读者可见"跨角色链路
 ├── playwright.config.js      浏览器、报告、webServer 配置
 └── .github/workflows/qa.yml  CI：自动拉被测项目、构建、跑全套、上传报告
 ```
 
-## 三个设计决定（面试会被问）
+## 四个设计决定（面试会被问）
 
 **1. 测试不 import 业务代码，只走 HTTP。**
 接口测试把 `portfolio-cms` 当成黑盒，通过 `API_BASE_URL` 访问；`sut-server.mjs` 用 `:memory:` 内存库 + 临时上传目录启动它，跑完自动删除。真实 `data.db` 和 `uploads/` 一个字节都不会被碰。
@@ -87,19 +106,11 @@ portfolio-cms-qa/
 **2. 页面测试默认打本地靶子，不赌外网。**
 第一版直接打线上 GitHub Pages，两个用例并发就 `net::ERR_TIMED_OUT` —— 失败原因是网络不是产品，这种"假红"最消耗对测试的信任。现在用 `static-server.mjs` 本地复刻 Pages（剥掉 `/portfolio-cms/` 前缀、未知路径回 `404.html`），离线、秒开、可重复。
 
-**3. 用例清单只有一份。**
-`cases/testcases.json` 是唯一数据源，`make-report.mjs` 直接读它生成表格。避免"文档一张表、代码一套用例、报告第三份"三处对不上的经典问题。
+**3. 用例清单只有一份，通过数来自运行产物。**
+`cases/testcases.json` 是唯一数据源，`make-report.mjs` 直接读它生成表格；而「本次通过多少条」由 `run-all.mjs` 解析 TAP、`make-report.mjs` 读 Playwright JSON 得到。两边分工，避免"文档一张表、代码一套用例、报告第三份"三处对不上。
 
-## 当前状态
-
-| 层次 | 已自动化 | 练习位 | 本次结果 |
-| --- | --- | --- | --- |
-| 接口契约 | 7 | 23 | 7 通过 / 0 失败 |
-| 页面 E2E | 5 | 4 | 5 通过 / 0 失败 |
-| 合计 | **12** | **27** | **全绿** |
-
-练习位不是空壳：每条都写清了要测什么、用什么方法、参考哪个范例，见 `docs/05-练习任务.md`。
-`test.todo` / `test.skip` 会明确显示为"待办"，不会伪装成通过。
+**4. 发现缺陷不等于让测试变红。**
+BUG-005 是真实缺陷，但把它写成 `assert.equal(status, 201)` 相当于宣布"这个 bug 是产品契约"，将来被测项目修好了，测试反而会挂。所以只记录实测值、写清影响与修复建议，让报告如实呈现「39 条全绿 + 1 条遗留风险」。
 
 ## 环境变量
 
@@ -126,7 +137,7 @@ portfolio-cms-qa/
 | 文件 | 什么时候看 |
 | --- | --- |
 | `docs/01-测试策略与分层.md` | 想讲清楚"为什么分这两层" |
-| `docs/02-用例设计方法.md` | 想讲清楚"用例是怎么想出来的" |
-| `docs/03-缺陷清单.md` | 想讲清楚"测试真的抓到过 bug" |
+| `docs/02-用例设计方法.md` | 想讲清楚"用例是怎么想出来的"、为什么不把缺陷写成断言 |
+| `docs/03-缺陷清单.md` | 想讲清楚"测试真的抓到过 bug"（5 条，含新发现的 BUG-005） |
 | `docs/04-面试怎么讲.md` | 面试前一晚 |
-| `docs/05-练习任务.md` | 动手补练习位时 |
+| `docs/05-练习任务.md` | 想看懂某一行为什么这么断言、以及下一步能做什么 |

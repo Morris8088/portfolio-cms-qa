@@ -1,7 +1,20 @@
 {
   "project": "portfolio-cms-qa",
   "sut": "portfolio-cms",
-  "note": "用例清单的单一数据源：文档、报告都从这里读，避免三处手写表格对不上。status=automated 已实现，practice 是留给自己的练习位。",
+  "note": "用例清单的单一数据源：文档、报告都从这里读，避免三处手写表格对不上。39 条已全部自动化；knownIssues 记录测试过程中发现的、被测项目尚未修复的风险。",
+  "knownIssues": [
+    {
+      "id": "BUG-005",
+      "title": "上传接口只校验扩展名，未校验文件内容",
+      "severity": "中",
+      "status": "已发现 / 待测项目未修复",
+      "foundBy": "TC-API-042",
+      "evidence": "把内容为 <script>alert(1)</script> 的文件命名为 looks-like-image.png，POST /api/uploads 返回 201 并落盘。",
+      "risk": "若站点允许直接访问上传目录中的 SVG/HTML 类文件，可能造成存储型 XSS；当前白名单不含 .html，风险有限，但内容嗅探缺失是事实。",
+      "suggestion": "读取文件头 magic number 校验真实类型（PNG/JPEG/GIF/WebP），并给上传目录加 Content-Security-Policy 与 X-Content-Type-Options: nosniff。",
+      "whyNotAsserted": "故意不写成 assert.equal(status, 201)：那是缺陷不是契约，把缺陷固化成期望值会导致将来修复后测试反而变红。用例只记录实测值，详见 tests/api/uploads.test.js 与 docs/03-缺陷清单.md。"
+    }
+  ],
   "cases": [
     { "id": "TC-API-000", "layer": "api", "module": "环境", "title": "打印当前被测接口地址", "priority": "P2", "method": "契约", "status": "automated", "file": "tests/api/smoke.test.js" },
     { "id": "TC-API-001", "layer": "api", "module": "健康检查", "title": "200 / ok=true / 合法时间 / 1 秒内响应", "priority": "P0", "method": "正常流", "status": "automated", "file": "tests/api/smoke.test.js" },
@@ -11,42 +24,42 @@
     { "id": "TC-API-005", "layer": "api", "module": "权限", "title": "未登录新建返回 401 且未写入数据", "priority": "P0", "method": "权限越权", "status": "automated", "file": "tests/api/smoke.test.js" },
     { "id": "TC-API-006", "layer": "api", "module": "文章列表", "title": "page=0 / pageSize=0 / pageSize=9999 被夹回合法范围", "priority": "P1", "method": "边界值", "status": "automated", "file": "tests/api/smoke.test.js" },
 
+    { "id": "TC-API-010", "layer": "api", "module": "登录", "title": "正确凭据返回 200 与三段式 token，且不带密码字段", "priority": "P0", "method": "正常流", "status": "automated", "file": "tests/api/auth.test.js" },
+    { "id": "TC-API-011", "layer": "api", "module": "登录", "title": "密码错与账号不存在同状态码同文案（防账号枚举）", "priority": "P0", "method": "安全", "status": "automated", "file": "tests/api/auth.test.js" },
+    { "id": "TC-API-012", "layer": "api", "module": "登录", "title": "缺必填字段返回 400", "priority": "P1", "method": "异常流", "status": "automated", "file": "tests/api/auth.test.js" },
+    { "id": "TC-API-013", "layer": "api", "module": "登录", "title": "伪造令牌访问 /me 返回 401", "priority": "P0", "method": "安全", "status": "automated", "file": "tests/api/auth.test.js" },
+    { "id": "TC-API-014", "layer": "api", "module": "登录", "title": "合法令牌换回当前用户信息", "priority": "P1", "method": "正常流", "status": "automated", "file": "tests/api/auth.test.js" },
+
+    { "id": "TC-API-020", "layer": "api", "module": "文章 CRUD", "title": "新建返回 201 并自动生成 slug/摘要，未指定状态时默认草稿", "priority": "P0", "method": "正常流", "status": "automated", "file": "tests/api/posts.crud.test.js" },
+    { "id": "TC-API-021", "layer": "api", "module": "文章 CRUD", "title": "标题或正文为空返回 400 且不写入", "priority": "P1", "method": "等价类", "status": "automated", "file": "tests/api/posts.crud.test.js" },
+    { "id": "TC-API-022", "layer": "api", "module": "文章 CRUD", "title": "slug 重复返回 409 且不会写入第二条", "priority": "P1", "method": "异常流", "status": "automated", "file": "tests/api/posts.crud.test.js" },
+    { "id": "TC-API-023", "layer": "api", "module": "文章 CRUD", "title": "只更新状态不影响其它字段，空更新被拒绝", "priority": "P1", "method": "契约", "status": "automated", "file": "tests/api/posts.crud.test.js" },
+    { "id": "TC-API-024", "layer": "api", "module": "权限", "title": "草稿对游客不可见、对管理员可见（详情+列表三层）", "priority": "P0", "method": "权限越权", "status": "automated", "file": "tests/api/posts.crud.test.js" },
+    { "id": "TC-API-025", "layer": "api", "module": "文章 CRUD", "title": "删除后详情/列表都查不到，重复删除 404", "priority": "P1", "method": "正常流", "status": "automated", "file": "tests/api/posts.crud.test.js" },
+
+    { "id": "TC-API-030", "layer": "api", "module": "查询", "title": "关键词搜索命中标题且每条结果都真命中", "priority": "P1", "method": "等价类", "status": "automated", "file": "tests/api/posts.query.test.js" },
+    { "id": "TC-API-031", "layer": "api", "module": "查询", "title": "搜不到时返回空数组不报错", "priority": "P1", "method": "异常流", "status": "automated", "file": "tests/api/posts.query.test.js" },
+    { "id": "TC-API-032", "layer": "api", "module": "查询", "title": "标签按完整值筛选，不误匹配子串", "priority": "P1", "method": "边界值", "status": "automated", "file": "tests/api/posts.query.test.js" },
+    { "id": "TC-API-033", "layer": "api", "module": "查询", "title": "sort=popular 按阅读量倒序且首条为全局最大", "priority": "P1", "method": "契约", "status": "automated", "file": "tests/api/posts.query.test.js" },
+    { "id": "TC-API-034", "layer": "api", "module": "安全", "title": "非法 sort 与带引号 q 不造成 SQL 注入", "priority": "P0", "method": "安全", "status": "automated", "file": "tests/api/posts.query.test.js" },
+    { "id": "TC-API-035", "layer": "api", "module": "查询", "title": "分页不重复、越界不报错", "priority": "P2", "method": "边界值", "status": "automated", "file": "tests/api/posts.query.test.js" },
+
+    { "id": "TC-API-040", "layer": "api", "module": "上传", "title": "未登录上传返回 401", "priority": "P0", "method": "权限越权", "status": "automated", "file": "tests/api/uploads.test.js" },
+    { "id": "TC-API-041", "layer": "api", "module": "上传", "title": "合法 PNG 返回 201，URL 可访问且字节一致", "priority": "P0", "method": "正常流", "status": "automated", "file": "tests/api/uploads.test.js" },
+    { "id": "TC-API-042", "layer": "api", "module": "安全", "title": "拒绝危险扩展名与无扩展名文件（并记录 BUG-005）", "priority": "P0", "method": "安全", "status": "automated", "file": "tests/api/uploads.test.js" },
+    { "id": "TC-API-043", "layer": "api", "module": "上传", "title": "超过 5MB 返回 413", "priority": "P1", "method": "边界值", "status": "automated", "file": "tests/api/uploads.test.js" },
+    { "id": "TC-API-044", "layer": "api", "module": "上传", "title": "同名文件不会互相覆盖", "priority": "P2", "method": "异常流", "status": "automated", "file": "tests/api/uploads.test.js" },
+    { "id": "TC-API-045", "layer": "api", "module": "上传", "title": "空请求与错误字段名返回 400", "priority": "P2", "method": "异常流", "status": "automated", "file": "tests/api/uploads.test.js" },
+
     { "id": "TC-E2E-001", "layer": "e2e", "module": "读者", "title": "未登录读者打开首页能看到文章列表", "priority": "P0", "method": "回归 BUG-001/002", "status": "automated", "file": "tests/e2e/reader.spec.js" },
     { "id": "TC-E2E-002", "layer": "e2e", "module": "读者", "title": "点「读读文章」不换地址、不进 404、滚到文章区", "priority": "P0", "method": "回归 BUG-004", "status": "automated", "file": "tests/e2e/reader.spec.js" },
     { "id": "TC-E2E-003", "layer": "e2e", "module": "读者", "title": "点卡片进详情，标题与正文完整", "priority": "P0", "method": "回归 BUG-002", "status": "automated", "file": "tests/e2e/reader.spec.js" },
     { "id": "TC-E2E-004", "layer": "e2e", "module": "路由", "title": "直接访问 #/posts 被接住，不落 404", "priority": "P1", "method": "异常流", "status": "automated", "file": "tests/e2e/reader.spec.js" },
     { "id": "TC-E2E-005", "layer": "e2e", "module": "路由", "title": "深链 #/posts/2 可直达且正文完整", "priority": "P1", "method": "正常流", "status": "automated", "file": "tests/e2e/reader.spec.js" },
 
-    { "id": "TC-API-010", "layer": "api", "module": "登录", "title": "正确凭据返回 200 与 token", "priority": "P0", "method": "正常流", "status": "practice", "file": "tests/api/auth.test.js" },
-    { "id": "TC-API-011", "layer": "api", "module": "登录", "title": "密码错与账号不存在同状态码同文案", "priority": "P0", "method": "安全", "status": "practice", "file": "tests/api/auth.test.js" },
-    { "id": "TC-API-012", "layer": "api", "module": "登录", "title": "缺必填字段返回 400", "priority": "P1", "method": "异常流", "status": "practice", "file": "tests/api/auth.test.js" },
-    { "id": "TC-API-013", "layer": "api", "module": "登录", "title": "伪造令牌访问 /me 返回 401", "priority": "P0", "method": "安全", "status": "practice", "file": "tests/api/auth.test.js" },
-    { "id": "TC-API-014", "layer": "api", "module": "登录", "title": "合法令牌换回当前用户信息", "priority": "P1", "method": "正常流", "status": "practice", "file": "tests/api/auth.test.js" },
-
-    { "id": "TC-API-020", "layer": "api", "module": "文章 CRUD", "title": "新建返回 201 并自动生成 slug/摘要", "priority": "P0", "method": "正常流", "status": "practice", "file": "tests/api/posts.crud.test.js" },
-    { "id": "TC-API-021", "layer": "api", "module": "文章 CRUD", "title": "标题或正文为空返回 400", "priority": "P1", "method": "等价类", "status": "practice", "file": "tests/api/posts.crud.test.js" },
-    { "id": "TC-API-022", "layer": "api", "module": "文章 CRUD", "title": "slug 重复返回 409", "priority": "P1", "method": "异常流", "status": "practice", "file": "tests/api/posts.crud.test.js" },
-    { "id": "TC-API-023", "layer": "api", "module": "文章 CRUD", "title": "只更新状态不影响其它字段", "priority": "P1", "method": "契约", "status": "practice", "file": "tests/api/posts.crud.test.js" },
-    { "id": "TC-API-024", "layer": "api", "module": "权限", "title": "草稿对游客不可见、对管理员可见", "priority": "P0", "method": "权限越权", "status": "practice", "file": "tests/api/posts.crud.test.js" },
-    { "id": "TC-API-025", "layer": "api", "module": "文章 CRUD", "title": "删除后数据确实不再可查", "priority": "P1", "method": "正常流", "status": "practice", "file": "tests/api/posts.crud.test.js" },
-
-    { "id": "TC-API-030", "layer": "api", "module": "查询", "title": "关键词搜索命中标题", "priority": "P1", "method": "等价类", "status": "practice", "file": "tests/api/posts.query.test.js" },
-    { "id": "TC-API-031", "layer": "api", "module": "查询", "title": "搜不到时返回空数组不报错", "priority": "P1", "method": "异常流", "status": "practice", "file": "tests/api/posts.query.test.js" },
-    { "id": "TC-API-032", "layer": "api", "module": "查询", "title": "标签按完整值筛选，不误匹配子串", "priority": "P1", "method": "边界值", "status": "practice", "file": "tests/api/posts.query.test.js" },
-    { "id": "TC-API-033", "layer": "api", "module": "查询", "title": "sort=popular 按阅读量倒序", "priority": "P1", "method": "契约", "status": "practice", "file": "tests/api/posts.query.test.js" },
-    { "id": "TC-API-034", "layer": "api", "module": "安全", "title": "非法 sort 不造成 SQL 注入", "priority": "P0", "method": "安全", "status": "practice", "file": "tests/api/posts.query.test.js" },
-    { "id": "TC-API-035", "layer": "api", "module": "查询", "title": "分页不重复、越界不报错", "priority": "P2", "method": "边界值", "status": "practice", "file": "tests/api/posts.query.test.js" },
-
-    { "id": "TC-API-040", "layer": "api", "module": "上传", "title": "未登录上传返回 401", "priority": "P0", "method": "权限越权", "status": "practice", "file": "tests/api/uploads.test.js" },
-    { "id": "TC-API-041", "layer": "api", "module": "上传", "title": "合法 PNG 返回 201 且地址可访问", "priority": "P0", "method": "正常流", "status": "practice", "file": "tests/api/uploads.test.js" },
-    { "id": "TC-API-042", "layer": "api", "module": "安全", "title": "拒绝危险扩展名与伪装文件", "priority": "P0", "method": "安全", "status": "practice", "file": "tests/api/uploads.test.js" },
-    { "id": "TC-API-043", "layer": "api", "module": "上传", "title": "超过 5MB 返回 413", "priority": "P1", "method": "边界值", "status": "practice", "file": "tests/api/uploads.test.js" },
-    { "id": "TC-API-044", "layer": "api", "module": "上传", "title": "同名文件不会互相覆盖", "priority": "P2", "method": "异常流", "status": "practice", "file": "tests/api/uploads.test.js" },
-    { "id": "TC-API-045", "layer": "api", "module": "上传", "title": "空请求返回 400", "priority": "P2", "method": "异常流", "status": "practice", "file": "tests/api/uploads.test.js" },
-
-    { "id": "TC-E2E-010", "layer": "e2e", "module": "后台", "title": "未登录访问后台被挡在登录页", "priority": "P0", "method": "权限越权", "status": "practice", "file": "tests/e2e/admin.spec.js" },
-    { "id": "TC-E2E-011", "layer": "e2e", "module": "后台", "title": "正确账号可登录后台", "priority": "P0", "method": "正常流", "status": "practice", "file": "tests/e2e/admin.spec.js" },
-    { "id": "TC-E2E-012", "layer": "e2e", "module": "后台", "title": "密码错误给出提示且停留登录页", "priority": "P1", "method": "异常流", "status": "practice", "file": "tests/e2e/admin.spec.js" },
-    { "id": "TC-E2E-013", "layer": "e2e", "module": "业务流程", "title": "发布文章后退出登录仍能被读者看到", "priority": "P0", "method": "端到端流程", "status": "practice", "file": "tests/e2e/admin.spec.js" }
+    { "id": "TC-E2E-010", "layer": "e2e", "module": "后台", "title": "未登录访问后台被挡在登录页并记录 redirect", "priority": "P0", "method": "权限越权", "status": "automated", "file": "tests/e2e/admin.spec.js" },
+    { "id": "TC-E2E-011", "layer": "e2e", "module": "后台", "title": "正确账号可登录后台，导航切到已登录态", "priority": "P0", "method": "正常流", "status": "automated", "file": "tests/e2e/admin.spec.js" },
+    { "id": "TC-E2E-012", "layer": "e2e", "module": "后台", "title": "登录表单必填校验：空账号/空密码给提示且不跳转", "priority": "P1", "method": "异常流 / 环境差异", "status": "automated", "file": "tests/e2e/admin.spec.js" },
+    { "id": "TC-E2E-013", "layer": "e2e", "module": "业务流程", "title": "发布文章后退出登录，读者仍能看到标题与正文", "priority": "P0", "method": "端到端流程", "status": "automated", "file": "tests/e2e/admin.spec.js" }
   ]
 }

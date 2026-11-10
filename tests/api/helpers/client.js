@@ -62,3 +62,38 @@ export async function login(username = 'admin', password = 'admin123') {
   }
   return data.token;
 }
+
+// ------------------------------------------------------------
+// 上传专用：为什么不能复用上面的 api()？
+//   api() 会把 body 做 JSON.stringify，而 multipart/form-data 的 body
+//   是一个 FormData 对象，必须原样交给 fetch，让它自己生成 boundary。
+//   一旦序列化就变成 "{}"，后端一个文件都收不到。
+// ------------------------------------------------------------
+export async function upload(form, token) {
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE}/api/uploads`, {
+    method: 'POST',
+    headers, // 故意不设 Content-Type
+    body: form
+  });
+  const text = await res.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
+  return { status: res.status, data, headers: res.headers };
+}
+
+/** 读取二进制资源（例如刚上传的图片），用于验证返回的 URL 真的能访问 */
+export async function raw(path) {
+  const res = await fetch(`${BASE}${path}`);
+  return {
+    status: res.status,
+    headers: res.headers,
+    bytes: Buffer.from(await res.arrayBuffer())
+  };
+}
