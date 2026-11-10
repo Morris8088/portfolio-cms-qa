@@ -1,0 +1,66 @@
+name: QA 回归
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# 同一个分支连推多次时，取消上一次还在跑的任务
+concurrency:
+  group: qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    name: 接口契约 + 页面 E2E
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 测试工程本身
+      - uses: actions/checkout@v4
+
+      # 2. 被测项目拉到隔壁目录 sut/ —— 测试工程不 import 它，只通过 HTTP 和 dist 交互
+      - name: 拉取被测项目 portfolio-cms
+        uses: actions/checkout@v4
+        with:
+          repository: Morris8088/portfolio-cms
+          path: sut
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: 安装测试工程依赖
+        run: npm ci
+
+      - name: 安装被测后端依赖
+        working-directory: sut/backend
+        run: npm ci
+
+      - name: 构建被测前端 Demo 产物
+        working-directory: sut/frontend
+        run: |
+          npm ci
+          npm run build:demo
+
+      # 3. 一条命令跑两层并出报告。
+      #    SUT_ROOT / SUT_DIST 让脚本找到 CI 里的目录，不依赖"隔壁恰好有这个项目"。
+      #    CHROME_PATH 指向 runner 预装的 Chrome，不触发 Playwright 浏览器下载。
+      - name: 运行全套回归
+        run: npm test
+        env:
+          SUT_ROOT: ${{ github.workspace }}/sut
+          SUT_DIST: ${{ github.workspace }}/sut/frontend/dist
+          CHROME_PATH: /usr/bin/google-chrome
+
+      # 4. 无论成功失败都留报告；失败时里面有 Playwright 截图和 trace
+      - name: 上传测试报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report
+          path: reports/
+          if-no-files-found: warn

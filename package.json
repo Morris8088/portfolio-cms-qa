@@ -1,0 +1,21 @@
+{
+  "name": "portfolio-cms-qa",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "portfolio-cms 的配套自动化测试工程：接口契约测试 + 页面 E2E + 用例设计 + 测试报告",
+  "scripts": {
+    "sut": "node scripts/sut-server.mjs",
+    "test:api": "node scripts/with-sut.mjs node --test --test-concurrency=1 tests/api",
+    "test:e2e": "playwright test",
+    "test": "node scripts/run-all.mjs",
+    "report": "node scripts/make-report.mjs",
+    "test:all": "npm test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,9 @@
+# 仓库里一律存 LF，避免 Windows 上 CRLF 让"内容明明一样、哈希却不同"
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
